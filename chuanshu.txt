@@ -1,0 +1,78 @@
+```python
+import torch	#已有
+import torch.nn as nn #已有
+import torch.nn.functional as F
+
+class PCNNLayer(nn.Module):
+    def __init__(self, channels):
+        super(PCNNLayer, self).__init__()
+        self.channels = channels
+        self.V_threshold = nn.Parameter(torch.ones(channels) * 0.5)
+        self.decay = nn.Parameter(torch.rand(channels))
+        self.linkage_field = nn.Conv2d(channels, channels, kernel_size=3, padding=1, bias=False)
+        self.linkage_field.weight.data.fill_(0.1)
+
+    def forward(self, inputs):
+        u = torch.zeros_like(inputs)
+        y = torch.zeros_like(inputs)
+        for _ in range(10):  # 迭代次数可以调整
+            firing = F.relu(u - self.V_threshold)
+            y = torch.max(y, firing)
+            u = inputs + self.linkage_field(y) - self.decay * u
+        return y
+```
+-----------------------------------------------------------
+
+class Fusion_HDC_DWT_Net(nn.Module):
+
+    def __init__(self):
+
+        super(Fusion_HDC_DWT_Net, self).__init__()
+
+        # ... 其他初始化代码保持不变 ...
+
+        self.pcnn_layer = PCNNLayer(64)  # 假设高频子带的通道数为64
+
+
+    def forward(self, infrared, visible):
+
+        # ... 原有的特征提取、DWT步骤保持不变 ...
+
+        
+
+        # 应用PCNN融合高频子带
+
+        concate_lh = torch.cat((dwt_lh_1, dwt_lh_2), dim=1)
+
+        concate_hl = torch.cat((dwt_hl_1, dwt_hl_2), dim=1)
+
+        concate_hh = torch.cat((dwt_hh_1, dwt_hh_2), dim=1)
+
+        # 对每个高频子带应用PCNN融合
+
+        fused_lh = self.pcnn_layer(concate_lh)
+
+        fused_hl = self.pcnn_layer(concate_hl)
+
+        fused_hh = self.pcnn_layer(concate_hh)
+
+       
+        # 使用融合后的高频子带与之前未改变的低频子带进行逆小波变换重构
+
+        concate = self.idwt(fused_ll, fused_lh, fused_hl, fused_hh)  # 注意：此处应使用fused_ll，但代码片段中未展示其计算
+
+        
+
+        # 继续后续处理，如卷积等不变
+
+        conv3_1 = nn.functional.relu(self.conv3_1(self.padding1(concate)))
+
+        conv3_2 = nn.functional.relu(self.conv3_2(self.padding1(conv3_1)))
+
+        conv3_3 = self.conv3_3(self.padding1(conv3_2))
+
+        
+
+        return conv3_3
+
+
